@@ -42,6 +42,8 @@ export const api = {
   },
 
   getProvider: (id: string) => request<{ provider: any }>(`/api/providers/${id}`),
+  trackContact: (id: string) =>
+    request<{ success: boolean }>(`/api/providers/${id}`, { method: 'PATCH' }),
 
   // Provider profile
   getMyProviderProfile: () => request<{ profile: any }>('/api/provider-profile'),

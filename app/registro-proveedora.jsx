@@ -28,6 +28,7 @@ import {
 import { Colors } from '../constants/Colors'
 import { api } from '../lib/api'
 import { updateStoredProfile } from '../lib/auth'
+import { InstagramIcon, TikTokIcon, FacebookIcon, GlobeIcon } from '../components/SocialIcons'
 
 const SERVICE_TYPES = [
   { id: 'fitness', label: 'Fitness & Entrenamiento', emoji: '💪' },
@@ -76,6 +77,10 @@ export default function RegistroProveedoraScreen() {
   const [address, setAddress] = useState('')
   const [price, setPrice] = useState('')
   const [whatsapp, setWhatsapp] = useState('')
+  const [websiteUrl, setWebsiteUrl] = useState('')
+  const [instagramUrl, setInstagramUrl] = useState('')
+  const [tiktokUrl, setTiktokUrl] = useState('')
+  const [facebookUrl, setFacebookUrl] = useState('')
   const [cityModal, setCityModal] = useState(false)
   const [photoUri, setPhotoUri] = useState(null)
   const [photoBase64, setPhotoBase64] = useState(null)
@@ -124,6 +129,10 @@ export default function RegistroProveedoraScreen() {
         city: ciudad,
         priceLabel: price || undefined,
         whatsapp: `+57${whatsapp.replace(/\s/g, '')}`,
+        websiteUrl: websiteUrl.trim() || undefined,
+        instagramUrl: instagramUrl.trim() || undefined,
+        tiktokUrl: tiktokUrl.trim() || undefined,
+        facebookUrl: facebookUrl.trim() || undefined,
       })
       // Save avatar if a photo was picked
       if (photoBase64) {
@@ -366,6 +375,72 @@ export default function RegistroProveedoraScreen() {
               onChangeText={setWhatsapp}
               keyboardType="phone-pad"
             />
+          </View>
+        </View>
+
+        {/* Links sociales */}
+        <View style={styles.fieldGroup}>
+          <Text style={styles.label}>Links y redes sociales (opcionales)</Text>
+          <View style={styles.socialLinksCard}>
+            <View style={styles.socialRow}>
+              <View style={styles.socialIconBox}>
+                <GlobeIcon size={22} color="#6b7280" />
+              </View>
+              <TextInput
+                style={[styles.input, { flex: 1, marginBottom: 0 }]}
+                placeholder="https://mipagina.com"
+                placeholderTextColor={Colors.textLight}
+                value={websiteUrl}
+                onChangeText={setWebsiteUrl}
+                autoCapitalize="none"
+                keyboardType="url"
+              />
+            </View>
+            <View style={styles.socialDivider} />
+            <View style={styles.socialRow}>
+              <View style={[styles.socialIconBox, { backgroundColor: '#fce7f3' }]}>
+                <InstagramIcon size={22} />
+              </View>
+              <TextInput
+                style={[styles.input, { flex: 1, marginBottom: 0 }]}
+                placeholder="https://instagram.com/tu_usuario"
+                placeholderTextColor={Colors.textLight}
+                value={instagramUrl}
+                onChangeText={setInstagramUrl}
+                autoCapitalize="none"
+                keyboardType="url"
+              />
+            </View>
+            <View style={styles.socialDivider} />
+            <View style={styles.socialRow}>
+              <View style={[styles.socialIconBox, { backgroundColor: '#f0f0f0' }]}>
+                <TikTokIcon size={22} />
+              </View>
+              <TextInput
+                style={[styles.input, { flex: 1, marginBottom: 0 }]}
+                placeholder="https://tiktok.com/@tu_usuario"
+                placeholderTextColor={Colors.textLight}
+                value={tiktokUrl}
+                onChangeText={setTiktokUrl}
+                autoCapitalize="none"
+                keyboardType="url"
+              />
+            </View>
+            <View style={styles.socialDivider} />
+            <View style={styles.socialRow}>
+              <View style={[styles.socialIconBox, { backgroundColor: '#dbeafe' }]}>
+                <FacebookIcon size={22} />
+              </View>
+              <TextInput
+                style={[styles.input, { flex: 1, marginBottom: 0 }]}
+                placeholder="https://facebook.com/tu_pagina"
+                placeholderTextColor={Colors.textLight}
+                value={facebookUrl}
+                onChangeText={setFacebookUrl}
+                autoCapitalize="none"
+                keyboardType="url"
+              />
+            </View>
           </View>
         </View>
 
@@ -785,5 +860,33 @@ const styles = StyleSheet.create({
   cityOptionTextActive: {
     color: Colors.primary,
     fontWeight: '700',
+  },
+  // Social links
+  socialLinksCard: {
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    overflow: 'hidden',
+    backgroundColor: Colors.white,
+  },
+  socialRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  socialIconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: Colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  socialDivider: {
+    height: 1,
+    backgroundColor: Colors.border,
+    marginHorizontal: 12,
   },
 })

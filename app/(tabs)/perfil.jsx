@@ -6,6 +6,8 @@ import {
   ScrollView,
   ActivityIndicator,
   Image,
+  Modal,
+  StatusBar,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { router, useFocusEffect } from 'expo-router'
@@ -25,9 +27,10 @@ import {
   MessageCircle,
   TrendingUp,
   Settings,
+  Smartphone,
 } from 'lucide-react-native'
 import { Colors } from '../../constants/Colors'
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import { api } from '../../lib/api'
 import { getStoredProfile, logout } from '../../lib/auth'
 
@@ -89,6 +92,7 @@ export default function PerfilScreen() {
   const [savedProviders, setSavedProviders] = useState([])
   const [providerProfile, setProviderProfile] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [photoModalUrl, setPhotoModalUrl] = useState(null)
 
   useFocusEffect(
     useCallback(() => {
@@ -154,13 +158,19 @@ export default function PerfilScreen() {
             {loading ? (
               <ActivityIndicator color={Colors.white} style={{ marginBottom: 8 }} />
             ) : null}
-            {avatarUrl ? (
-              <Image source={{ uri: avatarUrl }} style={styles.avatarImage} />
-            ) : (
-              <View style={styles.avatarCircle}>
-                <Text style={styles.avatarText}>{displayInitials}</Text>
-              </View>
-            )}
+            <TouchableOpacity
+              activeOpacity={0.85}
+              onPress={() => avatarUrl && setPhotoModalUrl(avatarUrl)}
+              disabled={!avatarUrl}
+            >
+              {avatarUrl ? (
+                <Image source={{ uri: avatarUrl }} style={styles.avatarImage} />
+              ) : (
+                <View style={styles.avatarCircle}>
+                  <Text style={styles.avatarText}>{displayInitials}</Text>
+                </View>
+              )}
+            </TouchableOpacity>
             <Text style={styles.headerName}>{displayName}</Text>
             {displayCity ? (
               <View style={styles.locationRow}>
@@ -214,6 +224,11 @@ export default function PerfilScreen() {
                     <Heart size={20} color="#f472b6" />
                     <Text style={styles.statNumber}>{providerProfile.savedCount ?? 0}</Text>
                     <Text style={styles.statLabel}>Guardadas</Text>
+                  </View>
+                  <View style={styles.statCard}>
+                    <Smartphone size={20} color="#06b6d4" />
+                    <Text style={styles.statNumber}>{providerProfile.contactCount ?? 0}</Text>
+                    <Text style={styles.statLabel}>Contactos</Text>
                   </View>
                   <View style={styles.statCard}>
                     <Star size={20} color={Colors.amber} />
@@ -380,6 +395,26 @@ export default function PerfilScreen() {
           <View style={{ height: 20 }} />
         </View>
       </ScrollView>
+
+      {/* Full-screen photo viewer */}
+      <Modal
+        visible={!!photoModalUrl}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setPhotoModalUrl(null)}
+      >
+        <TouchableOpacity
+          style={styles.photoModalBackdrop}
+          activeOpacity={1}
+          onPress={() => setPhotoModalUrl(null)}
+        >
+          <Image
+            source={{ uri: photoModalUrl }}
+            style={styles.photoModalImage}
+            resizeMode="contain"
+          />
+        </TouchableOpacity>
+      </Modal>
     </SafeAreaView>
   )
 }
@@ -470,15 +505,18 @@ const styles = StyleSheet.create({
   },
   statsGrid: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 8,
     marginBottom: 14,
   },
   statCard: {
-    flex: 1,
+    width: '30%',
+    flexGrow: 1,
     alignItems: 'center',
     backgroundColor: Colors.surface,
     borderRadius: 12,
     paddingVertical: 12,
+    paddingHorizontal: 4,
     gap: 4,
     borderWidth: 1,
     borderColor: Colors.border,
@@ -772,5 +810,16 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.textLight,
     marginBottom: 8,
+  },
+  // Photo viewer modal
+  photoModalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.92)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  photoModalImage: {
+    width: '100%',
+    height: '80%',
   },
 })

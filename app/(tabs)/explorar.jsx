@@ -6,6 +6,8 @@ import {
   ScrollView,
   FlatList,
   ActivityIndicator,
+  Image,
+  Modal,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { router, useLocalSearchParams } from 'expo-router'
@@ -16,7 +18,21 @@ import { CATEGORIES } from '../../constants/providers'
 import { api } from '../../lib/api'
 import { getStoredProfile } from '../../lib/auth'
 
-function ProviderAvatar({ initials, color, size = 48 }) {
+function ProviderAvatar({ initials, color, size = 48, avatarUrl }) {
+  if (avatarUrl) {
+    return (
+      <Image
+        source={{ uri: avatarUrl }}
+        style={{
+          width: size,
+          height: size,
+          borderRadius: size / 2,
+          borderWidth: 2,
+          borderColor: color + '44',
+        }}
+      />
+    )
+  }
   return (
     <View
       style={{
@@ -44,15 +60,27 @@ function FeaturedCard({ provider }) {
       activeOpacity={0.88}
       onPress={() => router.push(`/proveedora/${provider.id}`)}
     >
-      <View style={[styles.featuredCardTop, { backgroundColor: provider.color + '18' }]}>
-        <ProviderAvatar initials={provider.initials} color={provider.color} size={56} />
-        {provider.verified && (
-          <View style={styles.featuredVerifiedBadge}>
-            <CheckCircle size={12} color={Colors.green} />
-            <Text style={styles.featuredVerifiedText}>Verificada</Text>
-          </View>
-        )}
-      </View>
+      {/* Top area — full photo or initials */}
+      {provider.avatarUrl ? (
+        <Image
+          source={{ uri: provider.avatarUrl }}
+          style={styles.featuredCardImage}
+          resizeMode="cover"
+        />
+      ) : (
+        <View style={[styles.featuredCardTop, { backgroundColor: provider.color + '18' }]}>
+          <ProviderAvatar initials={provider.initials} color={provider.color} size={56} />
+        </View>
+      )}
+
+      {/* Verified badge overlaid on top-right corner */}
+      {provider.verified && (
+        <View style={styles.featuredVerifiedOverlay}>
+          <CheckCircle size={12} color={Colors.green} />
+          <Text style={styles.featuredVerifiedText}>Verificada</Text>
+        </View>
+      )}
+
       <View style={styles.featuredCardBody}>
         <Text style={styles.featuredName} numberOfLines={1}>{provider.name}</Text>
         <Text style={styles.featuredSpecialty} numberOfLines={1}>{provider.specialty}</Text>
@@ -73,7 +101,7 @@ function ProviderRow({ provider }) {
       activeOpacity={0.88}
       onPress={() => router.push(`/proveedora/${provider.id}`)}
     >
-      <ProviderAvatar initials={provider.initials} color={provider.color} size={52} />
+      <ProviderAvatar initials={provider.initials} color={provider.color} size={52} avatarUrl={provider.avatarUrl} />
       <View style={styles.providerRowInfo}>
         <View style={styles.providerRowTopLine}>
           <Text style={styles.providerRowName}>{provider.name}</Text>
@@ -127,6 +155,7 @@ function mapApiProvider(p) {
     name: p.providerFullName || '',
     initials: getInitials(p.providerFullName || ''),
     color: colorForId(String(p.id)),
+    avatarUrl: p.providerAvatarUrl || null,
     specialty: p.serviceType || '',
     category: p.serviceType || '',
     rating: p.averageRating ?? 0,
@@ -415,16 +444,24 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
     overflow: 'hidden',
   },
+  featuredCardImage: {
+    width: '100%',
+    height: 110,
+  },
   featuredCardTop: {
-    padding: 16,
+    height: 110,
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 8,
   },
-  featuredVerifiedBadge: {
+  featuredVerifiedOverlay: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: Colors.greenBg,
+    backgroundColor: 'rgba(255,255,255,0.92)',
     borderRadius: 10,
     paddingHorizontal: 8,
     paddingVertical: 3,

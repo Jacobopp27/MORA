@@ -22,9 +22,12 @@ import {
   Home,
   MapPin,
   Layers,
+  Globe,
+  Link,
 } from 'lucide-react-native'
 import { Colors } from '../constants/Colors'
 import { api } from '../lib/api'
+import { InstagramIcon, TikTokIcon, FacebookIcon, GlobeIcon } from '../components/SocialIcons'
 
 const SERVICE_TYPES = [
   { id: 'fitness', label: 'Fitness & Entrenamiento', emoji: '💪' },
@@ -59,6 +62,10 @@ export default function EditarPerfilProveedoraScreen() {
   const [price, setPrice] = useState('')
   const [whatsapp, setWhatsapp] = useState('')
   const [availability, setAvailability] = useState('')
+  const [websiteUrl, setWebsiteUrl] = useState('')
+  const [instagramUrl, setInstagramUrl] = useState('')
+  const [tiktokUrl, setTiktokUrl] = useState('')
+  const [facebookUrl, setFacebookUrl] = useState('')
   const [cityModal, setCityModal] = useState(false)
   const [loading, setLoading] = useState(false)
   const [initialLoading, setInitialLoading] = useState(true)
@@ -84,6 +91,10 @@ export default function EditarPerfilProveedoraScreen() {
           setPrice(p.priceLabel || '')
           setWhatsapp(p.whatsapp?.replace('+57', '') || '')
           setAvailability(p.availability || '')
+          setWebsiteUrl(p.websiteUrl || '')
+          setInstagramUrl(p.instagramUrl || '')
+          setTiktokUrl(p.tiktokUrl || '')
+          setFacebookUrl(p.facebookUrl || '')
         }
       } catch (e) {
         Alert.alert('Error', 'No se pudo cargar tu perfil de servicios.')
@@ -124,6 +135,10 @@ export default function EditarPerfilProveedoraScreen() {
         priceLabel: price.trim() || undefined,
         whatsapp: whatsapp.trim() ? `+57${whatsapp.replace(/\s/g, '')}` : undefined,
         availability: availability.trim() || undefined,
+        websiteUrl: websiteUrl.trim() || null,
+        instagramUrl: instagramUrl.trim() || null,
+        tiktokUrl: tiktokUrl.trim() || null,
+        facebookUrl: facebookUrl.trim() || null,
       })
       setSaved(true)
       setTimeout(() => router.back(), 1000)
@@ -323,6 +338,72 @@ export default function EditarPerfilProveedoraScreen() {
             </View>
           </View>
 
+          {/* Links sociales */}
+          <View style={styles.fieldGroup}>
+            <Text style={styles.label}>Links y redes sociales (opcionales)</Text>
+            <View style={styles.socialLinksCard}>
+              <View style={styles.socialRow}>
+                <View style={styles.socialIconBox}>
+                  <GlobeIcon size={22} color="#6b7280" />
+                </View>
+                <TextInput
+                  style={[styles.input, { flex: 1, marginBottom: 0 }]}
+                  placeholder="https://mipagina.com"
+                  placeholderTextColor={Colors.textLight}
+                  value={websiteUrl}
+                  onChangeText={setWebsiteUrl}
+                  autoCapitalize="none"
+                  keyboardType="url"
+                />
+              </View>
+              <View style={styles.socialDivider} />
+              <View style={styles.socialRow}>
+                <View style={[styles.socialIconBox, { backgroundColor: '#fce7f3' }]}>
+                  <InstagramIcon size={22} />
+                </View>
+                <TextInput
+                  style={[styles.input, { flex: 1, marginBottom: 0 }]}
+                  placeholder="https://instagram.com/tu_usuario"
+                  placeholderTextColor={Colors.textLight}
+                  value={instagramUrl}
+                  onChangeText={setInstagramUrl}
+                  autoCapitalize="none"
+                  keyboardType="url"
+                />
+              </View>
+              <View style={styles.socialDivider} />
+              <View style={styles.socialRow}>
+                <View style={[styles.socialIconBox, { backgroundColor: '#f0f0f0' }]}>
+                  <TikTokIcon size={22} />
+                </View>
+                <TextInput
+                  style={[styles.input, { flex: 1, marginBottom: 0 }]}
+                  placeholder="https://tiktok.com/@tu_usuario"
+                  placeholderTextColor={Colors.textLight}
+                  value={tiktokUrl}
+                  onChangeText={setTiktokUrl}
+                  autoCapitalize="none"
+                  keyboardType="url"
+                />
+              </View>
+              <View style={styles.socialDivider} />
+              <View style={styles.socialRow}>
+                <View style={[styles.socialIconBox, { backgroundColor: '#dbeafe' }]}>
+                  <FacebookIcon size={22} />
+                </View>
+                <TextInput
+                  style={[styles.input, { flex: 1, marginBottom: 0 }]}
+                  placeholder="https://facebook.com/tu_pagina"
+                  placeholderTextColor={Colors.textLight}
+                  value={facebookUrl}
+                  onChangeText={setFacebookUrl}
+                  autoCapitalize="none"
+                  keyboardType="url"
+                />
+              </View>
+            </View>
+          </View>
+
           {error ? (
             <View style={styles.errorBox}>
               <Text style={styles.errorText}>{error}</Text>
@@ -481,4 +562,32 @@ const styles = StyleSheet.create({
   cityOptionActive: { backgroundColor: Colors.primaryBg },
   cityOptionText: { fontSize: 16, color: Colors.textMain },
   cityOptionTextActive: { color: Colors.primary, fontWeight: '700' },
+  // Social links
+  socialLinksCard: {
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    overflow: 'hidden',
+    backgroundColor: Colors.white,
+  },
+  socialRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  socialIconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: Colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  socialDivider: {
+    height: 1,
+    backgroundColor: Colors.border,
+    marginHorizontal: 12,
+  },
 })

@@ -6,6 +6,11 @@ import {
   ScrollView,
   Linking,
   ActivityIndicator,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
+  Image,
+  Modal,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { router, useLocalSearchParams } from 'expo-router'
@@ -22,9 +27,14 @@ import {
   Calendar,
   DollarSign,
   Clock,
+  PenLine,
+  Send,
+  X,
 } from 'lucide-react-native'
 import { Colors } from '../../constants/Colors'
 import { api } from '../../lib/api'
+import { getStoredProfile } from '../../lib/auth'
+import { InstagramIcon, TikTokIcon, FacebookIcon, GlobeIcon } from '../../components/SocialIcons'
 
 const AVATAR_COLORS = [
   '#7c3aed', '#f472b6', '#06b6d4', '#10b981', '#f59e0b', '#ef4444', '#6366f1',
@@ -53,6 +63,22 @@ function StarRating({ rating, size = 14 }) {
   )
 }
 
+function InteractiveStarRating({ rating, onRate, size = 28 }) {
+  return (
+    <View style={{ flexDirection: 'row', gap: 6 }}>
+      {[1, 2, 3, 4, 5].map((i) => (
+        <TouchableOpacity key={i} onPress={() => onRate(i)} activeOpacity={0.7}>
+          <Star
+            size={size}
+            color={Colors.amber}
+            fill={i <= rating ? Colors.amber : 'transparent'}
+          />
+        </TouchableOpacity>
+      ))}
+    </View>
+  )
+}
+
 export default function ProveedoraScreen() {
   const { id } = useLocalSearchParams()
   const [providerData, setProviderData] = useState(null)
@@ -60,6 +86,24 @@ export default function ProveedoraScreen() {
   const [loading, setLoading] = useState(true)
   const [saved, setSaved] = useState(false)
   const [savingToggle, setSavingToggle] = useState(false)
+  const [photoModalUrl, setPhotoModalUrl] = useState(null)
+
+  // Review form state
+  const [currentUserId, setCurrentUserId] = useState(null)
+  const [isOwner, setIsOwner] = useState(false)
+  const [hasReviewed, setHasReviewed] = useState(false)
+  const [showReviewForm, setShowReviewForm] = useState(false)
+  const [reviewRating, setReviewRating] = useState(0)
+  const [reviewComment, setReviewComment] = useState('')
+  const [reviewSubmitting, setReviewSubmitting] = useState(false)
+  const [reviewError, setReviewError] = useState('')
+  const [reviewSuccess, setReviewSuccess] = useState(false)
+
+  useEffect(() => {
+    getStoredProfile().then((p) => {
+      if (p?.id) setCurrentUserId(p.id)
+    })
+  }, [])
 
   useEffect(() => {
     async function loadData() {
@@ -74,7 +118,17 @@ export default function ProveedoraScreen() {
           setProviderData(provResult.value.provider)
         }
         if (reviewsResult.status === 'fulfilled') {
-          setReviews(reviewsResult.value.reviews || [])
+          const fetchedReviews = reviewsResult.value.reviews || []
+          setReviews(fetchedReviews)
+          // Check if current user already reviewed
+          const storedProfile = await getStoredProfile()
+          if (storedProfile?.id) {
+            setCurrentUserId(storedProfile.id)
+            const alreadyReviewed = fetchedReviews.some(
+              (r) => r.reviewerId === storedProfile.id
+            )
+            setHasReviewed(alreadyReviewed)
+          }
         }
         if (savedResult.status === 'fulfilled') {
           const isSaved = (savedResult.value.saved || []).some(
@@ -91,6 +145,13 @@ export default function ProveedoraScreen() {
     if (id) loadData()
   }, [id])
 
+  // Detect if current user is the owner of this profile
+  useEffect(() => {
+    if (providerData && currentUserId) {
+      setIsOwner(providerData.userId === currentUserId)
+    }
+  }, [providerData, currentUserId])
+
   async function handleToggleSave() {
     if (savingToggle) return
     setSavingToggle(true)
@@ -99,6 +160,33 @@ export default function ProveedoraScreen() {
       setSaved(result.saved)
     } catch (e) {}
     finally { setSavingToggle(false) }
+  }
+
+  async function handleSubmitReview() {
+    if (reviewRating === 0) {
+      setReviewError('Selecciona una calificación')
+      return
+    }
+    setReviewSubmitting(true)
+    setReviewError('')
+    try {
+      await api.createReview(String(id), {
+        rating: reviewRating,
+        comment: reviewComment.trim() || undefined,
+      })
+      // Refresh reviews
+      const res = await api.getReviews(String(id))
+      setReviews(res.reviews || [])
+      setHasReviewed(true)
+      setReviewSuccess(true)
+      setShowReviewForm(false)
+      setReviewRating(0)
+      setReviewComment('')
+    } catch (e) {
+      setReviewError(e.message || 'Error al enviar la reseña')
+    } finally {
+      setReviewSubmitting(false)
+    }
   }
 
   if (loading) {
@@ -130,6 +218,7 @@ export default function ProveedoraScreen() {
   const name = provider.providerFullName || ''
   const initials = getInitials(name)
   const color = colorForId(String(provider.id))
+  const avatarUrl = provider.providerAvatarUrl || null
   const specialty = provider.serviceType || ''
   const rating = Number(provider.averageRating ?? 0)
   const reviewCount = provider.reviewCount ?? reviews.length
@@ -142,9 +231,16 @@ export default function ProveedoraScreen() {
   const availability = provider.availability || ''
   const address = provider.address || location
   const whatsappNumber = provider.whatsapp || provider.providerWhatsapp || ''
+  const websiteUrl = provider.websiteUrl || null
+  const instagramUrl = provider.instagramUrl || null
+  const tiktokUrl = provider.tiktokUrl || null
+  const facebookUrl = provider.facebookUrl || null
+  const hasSocialLinks = websiteUrl || instagramUrl || tiktokUrl || facebookUrl
 
   function handleWhatsApp() {
     if (whatsappNumber) {
+      // Track contact click (fire-and-forget)
+      api.trackContact(String(provider.id)).catch(() => {})
       Linking.openURL(`https://wa.me/${whatsappNumber.replace(/\D/g, '')}`)
     }
   }
@@ -171,9 +267,19 @@ export default function ProveedoraScreen() {
 
         {/* Profile info */}
         <View style={styles.headerProfile}>
-          <View style={styles.avatarCircle}>
-            <Text style={styles.avatarText}>{initials}</Text>
-          </View>
+          <TouchableOpacity
+            activeOpacity={0.85}
+            onPress={() => avatarUrl && setPhotoModalUrl(avatarUrl)}
+            disabled={!avatarUrl}
+          >
+            {avatarUrl ? (
+              <Image source={{ uri: avatarUrl }} style={styles.avatarImage} />
+            ) : (
+              <View style={styles.avatarCircle}>
+                <Text style={styles.avatarText}>{initials}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
           <Text style={styles.headerName}>{name}</Text>
           <Text style={styles.headerSpecialty}>{specialty}</Text>
           <View style={styles.headerMeta}>
@@ -308,9 +414,128 @@ export default function ProveedoraScreen() {
           </View>
         </View>
 
+        {/* Social links — icon-only buttons */}
+        {hasSocialLinks ? (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Encuéntrame en</Text>
+            <View style={styles.socialIconsRow}>
+              {websiteUrl ? (
+                <TouchableOpacity
+                  style={styles.socialIconBtn}
+                  onPress={() => Linking.openURL(websiteUrl.startsWith('http') ? websiteUrl : `https://${websiteUrl}`)}
+                  activeOpacity={0.75}
+                >
+                  <GlobeIcon size={28} color="#6b7280" />
+                </TouchableOpacity>
+              ) : null}
+              {instagramUrl ? (
+                <TouchableOpacity
+                  style={styles.socialIconBtn}
+                  onPress={() => Linking.openURL(instagramUrl.startsWith('http') ? instagramUrl : `https://${instagramUrl}`)}
+                  activeOpacity={0.75}
+                >
+                  <InstagramIcon size={28} />
+                </TouchableOpacity>
+              ) : null}
+              {tiktokUrl ? (
+                <TouchableOpacity
+                  style={styles.socialIconBtn}
+                  onPress={() => Linking.openURL(tiktokUrl.startsWith('http') ? tiktokUrl : `https://${tiktokUrl}`)}
+                  activeOpacity={0.75}
+                >
+                  <TikTokIcon size={28} />
+                </TouchableOpacity>
+              ) : null}
+              {facebookUrl ? (
+                <TouchableOpacity
+                  style={styles.socialIconBtn}
+                  onPress={() => Linking.openURL(facebookUrl.startsWith('http') ? facebookUrl : `https://${facebookUrl}`)}
+                  activeOpacity={0.75}
+                >
+                  <FacebookIcon size={28} />
+                </TouchableOpacity>
+              ) : null}
+            </View>
+          </View>
+        ) : null}
+
         {/* Reviews */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Reseñas recientes</Text>
+          <View style={styles.reviewsHeader}>
+            <Text style={styles.sectionTitle}>Reseñas recientes</Text>
+            {!isOwner && !hasReviewed && !showReviewForm && (
+              <TouchableOpacity
+                style={styles.writeReviewBtn}
+                onPress={() => setShowReviewForm(true)}
+                activeOpacity={0.8}
+              >
+                <PenLine size={14} color={Colors.primary} />
+                <Text style={styles.writeReviewBtnText}>Dejar reseña</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {/* Review success message */}
+          {reviewSuccess && (
+            <View style={styles.reviewSuccessBanner}>
+              <CheckCircle size={16} color={Colors.green} />
+              <Text style={styles.reviewSuccessText}>¡Reseña publicada! Gracias por tu opinión.</Text>
+            </View>
+          )}
+
+          {/* Already reviewed notice */}
+          {hasReviewed && !reviewSuccess && (
+            <View style={styles.alreadyReviewedBanner}>
+              <CheckCircle size={14} color={Colors.primary} />
+              <Text style={styles.alreadyReviewedText}>Ya dejaste una reseña para esta proveedora.</Text>
+            </View>
+          )}
+
+          {/* Inline review form */}
+          {showReviewForm && (
+            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+              <View style={styles.reviewFormCard}>
+                <View style={styles.reviewFormHeader}>
+                  <Text style={styles.reviewFormTitle}>Tu reseña</Text>
+                  <TouchableOpacity onPress={() => { setShowReviewForm(false); setReviewError('') }} activeOpacity={0.7}>
+                    <X size={18} color={Colors.textMuted} />
+                  </TouchableOpacity>
+                </View>
+                <Text style={styles.reviewFormLabel}>Calificación *</Text>
+                <InteractiveStarRating rating={reviewRating} onRate={setReviewRating} />
+                <Text style={[styles.reviewFormLabel, { marginTop: 14 }]}>Comentario (opcional)</Text>
+                <TextInput
+                  style={styles.reviewInput}
+                  placeholder="Cuéntanos tu experiencia..."
+                  placeholderTextColor={Colors.textLight}
+                  multiline
+                  numberOfLines={3}
+                  value={reviewComment}
+                  onChangeText={setReviewComment}
+                  textAlignVertical="top"
+                />
+                {reviewError ? (
+                  <Text style={styles.reviewErrorText}>{reviewError}</Text>
+                ) : null}
+                <TouchableOpacity
+                  style={[styles.reviewSubmitBtn, reviewSubmitting && { opacity: 0.6 }]}
+                  onPress={handleSubmitReview}
+                  disabled={reviewSubmitting}
+                  activeOpacity={0.85}
+                >
+                  {reviewSubmitting ? (
+                    <ActivityIndicator color={Colors.white} size="small" />
+                  ) : (
+                    <>
+                      <Send size={15} color={Colors.white} />
+                      <Text style={styles.reviewSubmitBtnText}>Publicar reseña</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </KeyboardAvoidingView>
+          )}
+
           {reviews.length === 0 ? (
             <Text style={{ color: Colors.textMuted, fontSize: 14 }}>
               Aún no hay reseñas para esta proveedora.
@@ -348,6 +573,26 @@ export default function ProveedoraScreen() {
 
         <View style={{ height: 100 }} />
       </ScrollView>
+
+      {/* Full-screen photo viewer */}
+      <Modal
+        visible={!!photoModalUrl}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setPhotoModalUrl(null)}
+      >
+        <TouchableOpacity
+          style={styles.photoModalBackdrop}
+          activeOpacity={1}
+          onPress={() => setPhotoModalUrl(null)}
+        >
+          <Image
+            source={{ uri: photoModalUrl }}
+            style={styles.photoModalImage}
+            resizeMode="contain"
+          />
+        </TouchableOpacity>
+      </Modal>
 
       {/* Bottom CTA */}
       <View style={styles.bottomCTA}>
@@ -414,6 +659,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 24,
     gap: 6,
+  },
+  avatarImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    borderWidth: 3,
+    borderColor: 'rgba(255,255,255,0.5)',
+    marginBottom: 4,
   },
   avatarCircle: {
     width: 80,
@@ -634,6 +887,152 @@ const styles = StyleSheet.create({
     color: Colors.primary,
     fontWeight: '600',
   },
+  // Social links
+  socialIconsRow: {
+    flexDirection: 'row',
+    gap: 14,
+    alignItems: 'center',
+  },
+  socialIconBtn: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: Colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: Colors.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  // Reviews header + write button
+  reviewsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  writeReviewBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: Colors.primaryBg,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderWidth: 1,
+    borderColor: Colors.primaryBorder,
+  },
+  writeReviewBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: Colors.primary,
+  },
+  // Review success / already reviewed banners
+  reviewSuccessBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#dcfce7',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#bbf7d0',
+  },
+  reviewSuccessText: {
+    fontSize: 13,
+    color: '#166534',
+    fontWeight: '600',
+    flex: 1,
+  },
+  alreadyReviewedBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: Colors.primaryBg,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: Colors.primaryBorder,
+  },
+  alreadyReviewedText: {
+    fontSize: 13,
+    color: Colors.primary,
+    fontWeight: '500',
+    flex: 1,
+  },
+  // Inline review form
+  reviewFormCard: {
+    backgroundColor: Colors.white,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 14,
+    borderWidth: 1.5,
+    borderColor: Colors.primaryBorder,
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  reviewFormHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  reviewFormTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: Colors.textMain,
+  },
+  reviewFormLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: Colors.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
+    marginBottom: 8,
+  },
+  reviewInput: {
+    backgroundColor: Colors.surface,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    fontSize: 14,
+    color: Colors.textMain,
+    minHeight: 80,
+  },
+  reviewErrorText: {
+    color: '#ef4444',
+    fontSize: 13,
+    marginTop: 8,
+    fontWeight: '500',
+  },
+  reviewSubmitBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: Colors.primary,
+    borderRadius: 12,
+    paddingVertical: 13,
+    marginTop: 14,
+  },
+  reviewSubmitBtnText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: Colors.white,
+  },
   // Reviews
   reviewCard: {
     backgroundColor: Colors.surface,
@@ -719,5 +1118,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1.5,
     borderColor: Colors.primaryBorder,
+  },
+  // Photo viewer modal
+  photoModalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.92)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  photoModalImage: {
+    width: '100%',
+    height: '80%',
   },
 })
