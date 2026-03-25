@@ -65,15 +65,22 @@ export default function ProveedoraScreen() {
     async function loadData() {
       setLoading(true)
       try {
-        const [provResult, reviewsResult] = await Promise.allSettled([
+        const [provResult, reviewsResult, savedResult] = await Promise.allSettled([
           api.getProvider(String(id)),
           api.getReviews(String(id)),
+          api.getSaved(),
         ])
         if (provResult.status === 'fulfilled') {
           setProviderData(provResult.value.provider)
         }
         if (reviewsResult.status === 'fulfilled') {
           setReviews(reviewsResult.value.reviews || [])
+        }
+        if (savedResult.status === 'fulfilled') {
+          const isSaved = (savedResult.value.saved || []).some(
+            (s) => s.provider?.id === String(id)
+          )
+          setSaved(isSaved)
         }
       } catch (e) {
         // silent
@@ -120,21 +127,21 @@ export default function ProveedoraScreen() {
   }
 
   const provider = providerData
-  const name = provider.fullName || provider.name || ''
+  const name = provider.providerFullName || ''
   const initials = getInitials(name)
   const color = colorForId(String(provider.id))
-  const specialty = provider.specialty || provider.category || ''
-  const rating = provider.avgRating ?? provider.rating ?? 0
-  const reviewCount = provider.reviewCount ?? provider.reviews ?? reviews.length
-  const isVerified = provider.verificationStatus === 'approved' || provider.verified || false
-  const location = provider.city || provider.location || ''
-  const serviceMode = provider.serviceMode || provider.serviceType || 'both'
-  const about = provider.about || provider.bio || ''
-  const tags = provider.tags || provider.specialties || []
-  const price = provider.price || provider.priceRange || ''
+  const specialty = provider.serviceType || ''
+  const rating = Number(provider.averageRating ?? 0)
+  const reviewCount = provider.reviewCount ?? reviews.length
+  const isVerified = true // API only returns active/approved providers
+  const location = provider.city || provider.providerCity || ''
+  const serviceMode = provider.serviceMode || ''
+  const about = provider.description || ''
+  const tags = provider.specialties || []
+  const price = provider.priceLabel || ''
   const availability = provider.availability || ''
   const address = provider.address || location
-  const whatsappNumber = provider.whatsapp || provider.phone || ''
+  const whatsappNumber = provider.whatsapp || provider.providerWhatsapp || ''
 
   function handleWhatsApp() {
     if (whatsappNumber) {
@@ -246,7 +253,7 @@ export default function ProveedoraScreen() {
           <View style={styles.detailsCard}>
             <View style={styles.detailRow}>
               <View style={styles.detailIcon}>
-                {serviceMode === 'home' ? (
+                {serviceMode === 'A domicilio' ? (
                   <Home size={16} color={Colors.primary} />
                 ) : (
                   <MapPin size={16} color={Colors.primary} />
@@ -254,13 +261,7 @@ export default function ProveedoraScreen() {
               </View>
               <View style={styles.detailText}>
                 <Text style={styles.detailLabel}>Modalidad</Text>
-                <Text style={styles.detailValue}>
-                  {serviceMode === 'home'
-                    ? 'A domicilio'
-                    : serviceMode === 'online'
-                    ? 'Virtual / Online'
-                    : 'A domicilio y en local'}
-                </Text>
+                <Text style={styles.detailValue}>{serviceMode || '—'}</Text>
               </View>
             </View>
             <View style={styles.detailDivider} />
@@ -316,7 +317,7 @@ export default function ProveedoraScreen() {
             </Text>
           ) : (
             reviews.map((review) => {
-              const reviewerName = review.reviewerName || review.userName || review.user?.fullName || 'Usuaria'
+              const reviewerName = review.reviewerFullName || 'Usuaria'
               const reviewDate = review.createdAt
                 ? new Date(review.createdAt).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' })
                 : ''

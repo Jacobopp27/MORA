@@ -13,6 +13,9 @@
     },
     "production": {
       "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://mora-api.vercel.app"
+      },
       "ios": {
         "resourceClass": "m-medium"
       }

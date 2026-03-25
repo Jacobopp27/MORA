@@ -5,6 +5,7 @@ import {
   StyleSheet,
   ScrollView,
   ActivityIndicator,
+  Image,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { router, useFocusEffect } from 'expo-router'
@@ -19,6 +20,11 @@ import {
   Bookmark,
   Star,
   CheckCircle,
+  Eye,
+  Heart,
+  MessageCircle,
+  TrendingUp,
+  Settings,
 } from 'lucide-react-native'
 import { Colors } from '../../constants/Colors'
 import { useState, useCallback } from 'react'
@@ -44,18 +50,19 @@ function getInitials(name) {
   return name.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase()
 }
 
-function SavedProviderCard({ provider }) {
-  const name = provider.fullName || provider.name || ''
+function SavedProviderCard({ provider: item }) {
+  const name = item.providerFullName || ''
   const initials = getInitials(name)
-  const color = colorForId(String(provider.id))
-  const specialty = provider.specialty || provider.category || ''
-  const rating = provider.avgRating ?? provider.rating ?? 0
+  const providerId = item.provider?.id
+  const color = colorForId(String(providerId || item.savedId))
+  const specialty = item.provider?.serviceType || ''
+  const rating = Number(item.provider?.averageRating ?? 0)
 
   return (
     <TouchableOpacity
       style={styles.savedCard}
       activeOpacity={0.85}
-      onPress={() => router.push(`/proveedora/${provider.id}`)}
+      onPress={() => router.push(`/proveedora/${providerId}`)}
     >
       <View
         style={[styles.savedAvatar, { backgroundColor: color + '22' }]}
@@ -80,6 +87,7 @@ function SavedProviderCard({ provider }) {
 export default function PerfilScreen() {
   const [profile, setProfile] = useState(null)
   const [savedProviders, setSavedProviders] = useState([])
+  const [providerProfile, setProviderProfile] = useState(null)
   const [loading, setLoading] = useState(true)
 
   useFocusEffect(
@@ -87,7 +95,6 @@ export default function PerfilScreen() {
       async function loadData() {
         setLoading(true)
         try {
-          // Load profile from cache first, then try API
           const cached = await getStoredProfile()
           if (cached) setProfile(cached)
 
@@ -100,6 +107,17 @@ export default function PerfilScreen() {
           }
           if (savedResult.status === 'fulfilled') {
             setSavedProviders(savedResult.value.saved || [])
+          }
+
+          // Load provider profile if proveedora
+          const currentProfile = meResult.status === 'fulfilled'
+            ? meResult.value.profile
+            : cached
+          if (currentProfile?.role === 'proveedora') {
+            const provResult = await api.getMyProviderProfile().catch(() => null)
+            if (provResult?.providerProfile) {
+              setProviderProfile(provResult.providerProfile)
+            }
           }
         } catch (e) {
           // Use cached profile if API fails
@@ -122,6 +140,8 @@ export default function PerfilScreen() {
   const displayPhone = profile?.whatsapp || ''
   const displayCity = profile?.city || ''
   const isVerified = profile?.verificationStatus === 'approved' || profile?.verification_status === 'approved'
+  const isProveedora = profile?.role === 'proveedora'
+  const avatarUrl = profile?.avatarUrl || null
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -134,9 +154,13 @@ export default function PerfilScreen() {
             {loading ? (
               <ActivityIndicator color={Colors.white} style={{ marginBottom: 8 }} />
             ) : null}
-            <View style={styles.avatarCircle}>
-              <Text style={styles.avatarText}>{displayInitials}</Text>
-            </View>
+            {avatarUrl ? (
+              <Image source={{ uri: avatarUrl }} style={styles.avatarImage} />
+            ) : (
+              <View style={styles.avatarCircle}>
+                <Text style={styles.avatarText}>{displayInitials}</Text>
+              </View>
+            )}
             <Text style={styles.headerName}>{displayName}</Text>
             {displayCity ? (
               <View style={styles.locationRow}>
@@ -162,6 +186,87 @@ export default function PerfilScreen() {
         </View>
 
         <View style={styles.body}>
+
+          {/* ── PROVIDER DASHBOARD ── */}
+          {isProveedora && (
+            <View style={styles.dashboardSection}>
+              <View style={styles.dashboardHeader}>
+                <TrendingUp size={16} color={Colors.primary} />
+                <Text style={styles.dashboardTitle}>Mi perfil profesional</Text>
+                {providerProfile && (
+                  <View style={[styles.activePill, !providerProfile.isActive && styles.inactivePill]}>
+                    <Text style={[styles.activePillText, !providerProfile.isActive && styles.inactivePillText]}>
+                      {providerProfile.isActive ? 'Activo' : 'Inactivo'}
+                    </Text>
+                  </View>
+                )}
+              </View>
+
+              {/* Stats grid */}
+              {providerProfile ? (
+                <View style={styles.statsGrid}>
+                  <View style={styles.statCard}>
+                    <Eye size={20} color={Colors.primary} />
+                    <Text style={styles.statNumber}>{providerProfile.profileViews ?? 0}</Text>
+                    <Text style={styles.statLabel}>Visitas</Text>
+                  </View>
+                  <View style={styles.statCard}>
+                    <Heart size={20} color="#f472b6" />
+                    <Text style={styles.statNumber}>{providerProfile.savedCount ?? 0}</Text>
+                    <Text style={styles.statLabel}>Guardadas</Text>
+                  </View>
+                  <View style={styles.statCard}>
+                    <Star size={20} color={Colors.amber} />
+                    <Text style={styles.statNumber}>
+                      {Number(providerProfile.averageRating ?? 0).toFixed(1)}
+                    </Text>
+                    <Text style={styles.statLabel}>Rating</Text>
+                  </View>
+                  <View style={styles.statCard}>
+                    <MessageCircle size={20} color={Colors.green} />
+                    <Text style={styles.statNumber}>{providerProfile.reviewCount ?? 0}</Text>
+                    <Text style={styles.statLabel}>Reseñas</Text>
+                  </View>
+                </View>
+              ) : (
+                <View style={styles.noProviderCard}>
+                  <Text style={styles.noProviderText}>
+                    Aún no has configurado tu perfil de servicios.
+                  </Text>
+                  <TouchableOpacity
+                    style={styles.setupProfileBtn}
+                    onPress={() => router.push('/registro-proveedora')}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.setupProfileBtnText}>Configurar perfil →</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+
+              {/* Action buttons */}
+              {providerProfile && (
+                <View style={styles.dashboardActions}>
+                  <TouchableOpacity
+                    style={styles.dashActionBtn}
+                    activeOpacity={0.8}
+                    onPress={() => router.push('/editar-perfil-proveedora')}
+                  >
+                    <Settings size={15} color={Colors.primary} />
+                    <Text style={styles.dashActionBtnText}>Editar servicios</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.dashActionBtn, styles.dashActionBtnSecondary]}
+                    activeOpacity={0.8}
+                    onPress={() => router.push(`/proveedora/${providerProfile.id}`)}
+                  >
+                    <Eye size={15} color={Colors.white} />
+                    <Text style={[styles.dashActionBtnText, { color: Colors.white }]}>Ver mi perfil</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+          )}
+
           {/* Saved providers */}
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
@@ -174,7 +279,7 @@ export default function PerfilScreen() {
               </Text>
             ) : (
               savedProviders.map((p) => (
-                <SavedProviderCard key={String(p.id)} provider={p} />
+                <SavedProviderCard key={String(p.savedId || p.provider?.id)} provider={p} />
               ))
             )}
           </View>
@@ -312,6 +417,130 @@ const styles = StyleSheet.create({
     paddingTop: 24,
     paddingHorizontal: 24,
     gap: 8,
+  },
+  avatarImage: {
+    width: 84,
+    height: 84,
+    borderRadius: 42,
+    borderWidth: 3,
+    borderColor: 'rgba(255,255,255,0.4)',
+    marginBottom: 4,
+  },
+  // Dashboard
+  dashboardSection: {
+    marginHorizontal: 20,
+    marginBottom: 8,
+    backgroundColor: Colors.white,
+    borderRadius: 18,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  dashboardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 14,
+  },
+  dashboardTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: Colors.textMain,
+    flex: 1,
+  },
+  activePill: {
+    backgroundColor: '#dcfce7',
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderWidth: 1,
+    borderColor: '#86efac',
+  },
+  inactivePill: {
+    backgroundColor: '#fef9c3',
+    borderColor: '#fde047',
+  },
+  activePillText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: Colors.green,
+  },
+  inactivePillText: {
+    color: '#a16207',
+  },
+  statsGrid: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 14,
+  },
+  statCard: {
+    flex: 1,
+    alignItems: 'center',
+    backgroundColor: Colors.surface,
+    borderRadius: 12,
+    paddingVertical: 12,
+    gap: 4,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  statNumber: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: Colors.textMain,
+  },
+  statLabel: {
+    fontSize: 10,
+    color: Colors.textMuted,
+    fontWeight: '500',
+  },
+  noProviderCard: {
+    backgroundColor: Colors.surface,
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 8,
+  },
+  noProviderText: {
+    fontSize: 13,
+    color: Colors.textMuted,
+    textAlign: 'center',
+  },
+  setupProfileBtn: {
+    backgroundColor: Colors.primary,
+    borderRadius: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+  },
+  setupProfileBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: Colors.white,
+  },
+  dashboardActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  dashActionBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: Colors.primary,
+    backgroundColor: Colors.primaryBg,
+  },
+  dashActionBtnSecondary: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
+  },
+  dashActionBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: Colors.primary,
   },
   avatarCircle: {
     width: 84,

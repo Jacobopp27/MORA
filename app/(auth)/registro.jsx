@@ -13,7 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useState } from 'react'
-import { ChevronLeft, ChevronDown, Eye, EyeOff } from 'lucide-react-native'
+import { ChevronLeft, ChevronDown, Eye, EyeOff, User, Briefcase } from 'lucide-react-native'
 import { Colors } from '../../constants/Colors'
 import { api } from '../../lib/api'
 import { saveAuth } from '../../lib/auth'
@@ -26,7 +26,8 @@ const CITIES = [
 
 export default function RegistroScreen() {
   const { role } = useLocalSearchParams()
-  const isProveedora = role === 'proveedora'
+  const [selectedRole, setSelectedRole] = useState(role === 'proveedora' ? 'proveedora' : 'usuaria')
+  const isProveedora = selectedRole === 'proveedora'
   const [nombre, setNombre] = useState('')
   const [email, setEmail] = useState('')
   const [whatsapp, setWhatsapp] = useState('')
@@ -77,7 +78,7 @@ export default function RegistroScreen() {
         >
           <ChevronLeft size={24} color={Colors.textMain} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{isProveedora ? 'Registro proveedora' : 'Crear cuenta'}</Text>
+        <Text style={styles.headerTitle}>Crear cuenta</Text>
         <View style={{ width: 40 }} />
       </View>
 
@@ -90,6 +91,37 @@ export default function RegistroScreen() {
         <Text style={styles.subtitle}>
           Únete a la comunidad de mujeres que se apoyan entre sí
         </Text>
+
+        {/* Role toggle */}
+        <View style={styles.roleToggle}>
+          <TouchableOpacity
+            style={[styles.roleOption, selectedRole === 'usuaria' && styles.roleOptionActive]}
+            onPress={() => setSelectedRole('usuaria')}
+            activeOpacity={0.8}
+          >
+            <View style={[styles.roleIconCircle, selectedRole === 'usuaria' && styles.roleIconCircleActive]}>
+              <User size={18} color={selectedRole === 'usuaria' ? Colors.white : Colors.primary} />
+            </View>
+            <Text style={[styles.roleLabel, selectedRole === 'usuaria' && styles.roleLabelActive]}>
+              Soy usuaria
+            </Text>
+            <Text style={styles.roleDesc}>Busco servicios</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.roleOption, selectedRole === 'proveedora' && styles.roleOptionActive]}
+            onPress={() => setSelectedRole('proveedora')}
+            activeOpacity={0.8}
+          >
+            <View style={[styles.roleIconCircle, selectedRole === 'proveedora' && styles.roleIconCircleActive]}>
+              <Briefcase size={18} color={selectedRole === 'proveedora' ? Colors.white : Colors.primary} />
+            </View>
+            <Text style={[styles.roleLabel, selectedRole === 'proveedora' && styles.roleLabelActive]}>
+              Soy proveedora
+            </Text>
+            <Text style={styles.roleDesc}>Ofrezco servicios</Text>
+          </TouchableOpacity>
+        </View>
 
         {/* Nombre */}
         <View style={styles.fieldGroup}>
@@ -311,6 +343,49 @@ const styles = StyleSheet.create({
     color: Colors.textMuted,
     marginBottom: 24,
     lineHeight: 22,
+  },
+  roleToggle: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 24,
+  },
+  roleOption: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 8,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: Colors.borderMed,
+    backgroundColor: Colors.surface,
+    gap: 6,
+  },
+  roleOptionActive: {
+    backgroundColor: Colors.primaryBg,
+    borderColor: Colors.primary,
+  },
+  roleIconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: Colors.primaryBg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  roleIconCircleActive: {
+    backgroundColor: Colors.primary,
+  },
+  roleLabel: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: Colors.textMain,
+  },
+  roleLabelActive: {
+    color: Colors.primary,
+  },
+  roleDesc: {
+    fontSize: 11,
+    color: Colors.textMuted,
   },
   fieldGroup: {
     marginBottom: 16,
